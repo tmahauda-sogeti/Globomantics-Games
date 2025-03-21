@@ -1,35 +1,206 @@
-name: Build and deploy web game
+name: Build and deploy web game - Touig
 
+# https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#running-your-workflow-when-a-pull-request-merges-1
 on:
   push:
-    branches: [ main ]
+    branches: [ develop ]
+  pull_request_target:
+    branches: [ recette, main ]
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Tag à renseigner obligatoirement"
+        required: true
+        type: string
+      # La variable "tags" n'est utilisée que pour affichage dans la suite du workflow, juste présente pour exemple
 
 env:
   AZURE_WEBAPP_NAME: 'globomantics-web-game'   # set this to your application's name
   AZURE_WEBAPP_PACKAGE_PATH: '.'      # set this to the path to your web app project, defaults to the repository root
-  DOTNET_VERSION: '5.0'           
+  DOTNET_VERSION: '9.0'
+  GLOBOMANTICS_TAG: '0.1.0'
+
+permissions:
+  actions: write
+  contents: write
+  security-events: write
 
 jobs:
-  build-and-deploy:
+  checks:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@main
+      # Saisie du tag IHM
+      - name: Valeur du tag saisi via IHM
+        run: echo "Saisie du tag via IHM ${{ inputs.tags }}"
+
+      # Display the event that triggered the workflow
+      - name: Evenement declencheur du job checks
+        run: echo "The job was triggered by a ${{ github.event_name }} event."
+
+      # Information about the repository and branch
+      - name: Nom de la branche et projet GitHub
+        run: echo "The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      # Repo cloné dans le runner
+      - name: Repertoire cloné dans le runner GitHub
+        run: echo "The ${{ github.repository }} repository has been cloned to the runner."
       
+      # Workspace copié dans le runner  
+      - name: Workspace copié dans le runner GitHub
+        run: echo "Your repository has been copied to the path ${{ github.workspace }} on the runner."
+
+      # Liste des fichiers dans le workspace
+      - name: List files in the repository
+        run: |
+          ls ${{ github.workspace }}
+      
+      # Liste de toutes les variables d'environnement sur Windows
+      - name: List of the GitHub Actions environment variables on Windows
+        run: env
+      
+      # Exemple de conditional step
+      - name: conditional step when event name is pull request target
+        if: ${{ github.event_name == 'pull_request_target' }}
+        run: echo "This event is a pull request_target"
+
+      # Marketplace Dotnet
       - name: 'Setup .NET Core'
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }} 
+
+      # Vérification version Dotnet
+      - name: Display dotnet version
+        run: dotnet --version
+        
+      # Emplacement des outils du runner
+      - name: Emplacement des outils installés dans le runner ${{ runner.name }}
+        run: echo "The preinstalled tools are located here on the runner ${{ runner.tool_cache }}."
+        
+      # Outils installés dans le runner  
+      - name: List files in tool cache on the runner ${{ runner.name }}
+        run: |
+          ls ${{ runner.tool_cache }}
       
-      - name: 'Build app package'
+      # Statut du job
+      - name: Statut du job
+        run: echo "This job's status is ${{ job.status }}."
+
+
+
+  determine-environment:
+    runs-on: ubuntu-latest
+    needs: [checks]
+
+    steps:
+      # Détermination des environnements
+      # Mauvaise idée de procéder avec un script dur car ne prend pas en compte tous les cas, comme merge par exemple
+      - name: Select environment
+        id: select-environment
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/develop" ]; then
+            echo "develop"
+            echo "selected-env=develop" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref }}" == "refs/heads/recette" ]; then
+            echo "recette"
+            echo "selected-env=recette" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "production"
+            echo "selected-env=production" >> "$GITHUB_OUTPUT"
+          else
+            echo "nada"
+          fi
+
+    outputs:
+      selected-env: ${{ steps.select-environment.outputs.selected-env }}
+    # Mieux que le script dans le run  
+    environment:
+      name: ${{ github.ref_name }}
+
+
+
+  analyze_codeql:
+    needs: [determine-environment]
+    uses: ./.github/workflows/codeql-analysis.yml  # use the callable tests job to run tests
+    
+   
+
+  build-and-package:
+    runs-on: ubuntu-latest
+    needs: [analyze_codeql]
+
+    steps:
+      # Use Action located in https://github.com/actions
+      - name: Check out repository code
+        uses: actions/checkout@v2  
+        
+      # Marketplace Dotnet
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }} 
+
+      # Construction de l'application
+      - name: Build app
         run: |
           dotnet restore '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln'
-          dotnet build '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release
-          dotnet publish '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' -c Release -o '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package' 
+          dotnet build '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release --no-restore
           
-      - name: 'Deploy web app to the Azure cloud'
-        uses: azure/webapps-deploy@v2
-        with: 
-          app-name: ${{ env.AZURE_WEBAPP_NAME }} # Replace with your app name
-          publish-profile: ${{ secrets.AZUREWEBAPPPUBLISHPROFILE  }} # Define secret variable in repository settings as per action documentation
-          package: '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package'
+      # Packaging de l'application
+      - name: Package app
+        run: dotnet pack '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release --no-build --output .
+          
+      # Publication de l'application
+      - name: Publish app
+        run: |
+          dotnet publish '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' -c Release -o '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package'
+
+
+
+
+  deploy-environment:
+    runs-on: ubuntu-latest
+    needs: [build-and-package, determine-environment]
+
+    steps:
+      # Création des Releases par environnement
+      - name: Vérification de l'output
+        run: echo "Determine Environment Output ${{ needs.determine-environment.outputs.selected-env }}."
+      - name: Create Draft develop
+        id: create_draft_develop
+        uses: softprops/action-gh-release@v2
+        if: ${{ needs.determine-environment.outputs.selected-env == 'develop' }}   
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.GLOBOMANTICS_TAG }}
+          name: ${{ env.AZURE_WEBAPP_NAME }}_${{ needs.determine-environment.outputs.selected-env }}
+          draft: true
+          prerelease: false
+          body: "Release Note branche ${{ github.ref }} en mode draft, déclencheur par ${{ github.actor }} sur une action ${{ github.event_name }}, commit SHA ${{ github.sha }}"
+      - name: Create PreRelease recette
+        id: create_prerelease_recette
+        uses: softprops/action-gh-release@v2
+        if: ${{ needs.determine-environment.outputs.selected-env == 'recette' }}   
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.GLOBOMANTICS_TAG }}
+          name: ${{ env.AZURE_WEBAPP_NAME }}_${{ needs.determine-environment.outputs.selected-env }}
+          draft: false
+          prerelease: true
+          body: "Release Note branche ${{ github.ref }} en mode prerelease, déclencheur par ${{ github.actor }} sur une action ${{ github.event_name }}, commit SHA ${{ github.sha }}"
+      - name: Create Release production
+        id: create_release_production
+        uses: softprops/action-gh-release@v2
+        if: ${{ needs.determine-environment.outputs.selected-env == 'production' }}   
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.GLOBOMANTICS_TAG }}
+          name: ${{ env.AZURE_WEBAPP_NAME }}_${{ needs.determine-environment.outputs.selected-env }}
+          draft: false
+          prerelease: false
+          make_latest: true
+          body: "Release Note branche ${{ github.ref }} en mode make_latest, déclencheur par ${{ github.actor }} sur une action ${{ github.event_name }}, commit SHA ${{ github.sha }}"
