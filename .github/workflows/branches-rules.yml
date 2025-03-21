@@ -38,37 +38,3 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           echo "Main branch - Release artefact with SemVer"
-
-  sync-recette:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/recette' || github.ref == 'refs/heads/develop'
-    steps:
-      - name: Checkout recette branch
-        uses: actions/checkout@main
-        with:
-          ref: recette
-
-      - name: Synchronize recette branch with develop
-        run: |
-          git fetch origin develop
-          git rebase origin/develop || (git rebase --abort && echo "Rebase failed, please resolve conflicts manually")
-          git push origin recette --force-with-lease
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  sync-main:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/recette'
-    steps:
-      - name: Checkout main branch
-        uses: actions/checkout@main
-        with:
-          ref: main
-
-      - name: Synchronize main branch with recette
-        run: |
-          git fetch origin recette
-          git rebase origin/recette || (git rebase --abort && echo "Rebase failed, please resolve conflicts manually")
-          git push origin main --force-with-lease
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
