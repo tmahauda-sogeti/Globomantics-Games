@@ -10,6 +10,9 @@ on:
       - main
   workflow_dispatch: # Déclenchement manuel si nécessaire
 
+permissions:
+  contents: write  # Donne la permission d'écrire dans le dépôt pour le rebase
+
 jobs:
   branch-rules:
     runs-on: ubuntu-latest
