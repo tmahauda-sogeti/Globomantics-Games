@@ -20,6 +20,11 @@ env:
   DOTNET_VERSION: '9.0'
   GLOBOMANTICS_TAG: '0.1.0'
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
 jobs:
   checks:
     runs-on: ubuntu-latest

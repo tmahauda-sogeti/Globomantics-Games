@@ -14,6 +14,11 @@ name: "CodeQL Advanced"
 on:
   workflow_call:
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
 jobs:
   analyze_codeql:
     name: Analyze (${{ matrix.language }})
