@@ -48,8 +48,8 @@ jobs:
       - name: Synchronize recette branch with develop
         run: |
           git fetch origin develop
-          git merge --ff-only origin/develop || echo "Merge en fast-forward impossible, vérifiez les conflits !"
-          git push origin recette
+          git rebase origin/develop || (git rebase --abort && echo "Rebase failed, please resolve conflicts manually")
+          git push origin recette --force-with-lease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -65,7 +65,7 @@ jobs:
       - name: Synchronize main branch with recette
         run: |
           git fetch origin recette
-          git merge --ff-only origin/recette || echo "Merge en fast-forward impossible, vérifiez les conflits !"
-          git push origin main
+          git rebase origin/recette || (git rebase --abort && echo "Rebase failed, please resolve conflicts manually")
+          git push origin main --force-with-lease
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
