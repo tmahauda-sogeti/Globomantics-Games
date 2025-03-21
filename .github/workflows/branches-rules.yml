@@ -41,7 +41,7 @@ jobs:
 
   sync-recette:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'recette' && github.event.pull_request.head.ref == 'develop'
+    if: github.ref == 'refs/heads/recette' || github.ref == 'refs/heads/develop'
     steps:
       - name: Checkout recette branch
         uses: actions/checkout@main
@@ -58,7 +58,7 @@ jobs:
 
   sync-main:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'recette'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/recette'
     steps:
       - name: Checkout main branch
         uses: actions/checkout@main
