@@ -3,6 +3,10 @@ name: Build web game
 on:
   pull_request:
     branches: [ main ]
+  workflow_run:
+    workflows: [ "CodeQL Analysis" ]  # Le nom du workflow CodeQL que tu veux exécuter en premier
+    types:
+      - completed
 
 env:
   AZURE_WEBAPP_NAME: 'globomantics-web-game'   # set this to your application's name
