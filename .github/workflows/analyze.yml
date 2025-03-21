@@ -1,14 +1,14 @@
-name: "Build and scan project with CodeQL"
+name: Scan project with CodeQL
 
 on:
   push:
     branches:
       - develop
-      - recette
   pull_request:
-    branches:
+    branches: 
       - develop
       - recette
+      - main
 
 jobs:
   analyze:
