@@ -122,7 +122,7 @@ jobs:
 
   analyze_codeql:
     needs: [determine-environment]
-    uses: ./.github/workflows/codeql.yml  # use the callable tests job to run tests
+    uses: ./.github/workflows/codeql-analysis.yml  # use the callable tests job to run tests
     
    
 
