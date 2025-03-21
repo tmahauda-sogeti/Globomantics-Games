@@ -21,8 +21,8 @@ env:
   GLOBOMANTICS_TAG: '0.1.0'
 
 permissions:
-  actions: read
-  contents: read
+  actions: write
+  contents: write
   security-events: write
 
 jobs:
@@ -167,7 +167,6 @@ jobs:
       # Création des Releases par environnement
       - name: Vérification de l'output
         run: echo "Determine Environment Output ${{ needs.determine-environment.outputs.selected-env }}."
-
       - name: Create Draft develop
         id: create_draft_develop
         uses: softprops/action-gh-release@v2
