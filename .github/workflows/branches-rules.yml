@@ -1,0 +1,71 @@
+name: Branch Rules
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - recette
+      - main
+  workflow_dispatch: # Déclenchement manuel si nécessaire
+
+jobs:
+  branch-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@main
+
+      - name: Display branch info
+        run: |
+          echo "Branch: ${{ github.ref }}"
+
+      - name: Develop branch actions
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          echo "Develop branch - Build & Push artefact to staging"
+
+      - name: Recette branch actions
+        if: github.ref == 'refs/heads/recette'
+        run: |
+          echo "Recette branch - Run qualimetry checks"
+
+      - name: Main branch actions
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "Main branch - Release artefact with SemVer"
+
+  sync-recette:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'recette' && github.event.pull_request.head.ref == 'develop'
+    steps:
+      - name: Checkout recette branch
+        uses: actions/checkout@main
+        with:
+          ref: recette
+
+      - name: Synchronize recette branch with develop
+        run: |
+          git fetch origin develop
+          git merge --ff-only origin/develop || echo "Merge en fast-forward impossible, vérifiez les conflits !"
+          git push origin recette
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-main:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'recette'
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@main
+        with:
+          ref: main
+
+      - name: Synchronize main branch with recette
+        run: |
+          git fetch origin recette
+          git merge --ff-only origin/recette || echo "Merge en fast-forward impossible, vérifiez les conflits !"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
