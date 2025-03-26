@@ -59,9 +59,41 @@ jobs:
       - name: 'Publish'
         run: dotnet publish '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' -c Release -o '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package' 
 
+  package:
+    runs-on: ubuntu-latest
+    needs: analyse
+
+    steps:
+      - name: 'Check out repository code'
+      - uses: actions/checkout@v4
+      
+      - name: 'Setup .NET Core'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }} 
+      
+      - name: 'Package'
+        run: dotnet pack '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release --no-build --output .
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: package
+
+    steps:
+      - name: 'Check out repository code'
+      - uses: actions/checkout@v4
+      
+      - name: 'Setup .NET Core'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }} 
+      
+      - name: 'Publish'
+        run: dotnet publish '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' -c Release -o '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package' 
+
   deploy:
     runs-on: ubuntu-latest
-    needs: build
+    needs: publish
 
     steps:
       # Création des Releases par environnement
@@ -73,7 +105,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.GLOBOMANTICS_TAG }}
-          name: '${{ env.AZURE_WEBAPP_NAME }}_develop'
+          name: '${{ env.AZURE_WEBAPP_NAME }}-develop'
           draft: true
           prerelease: false
           body: "Release Note branche ${{ github.ref }} en mode draft, déclencheur par ${{ github.actor }} sur une action ${{ github.event_name }}, commit SHA ${{ github.sha }}"
@@ -85,7 +117,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.GLOBOMANTICS_TAG }}
-          name: '${{ env.AZURE_WEBAPP_NAME }}_recette'
+          name: '${{ env.AZURE_WEBAPP_NAME }}-recette'
           draft: false
           prerelease: true
           body: "Release Note branche ${{ github.ref }} en mode prerelease, déclencheur par ${{ github.actor }} sur une action ${{ github.event_name }}, commit SHA ${{ github.sha }}"
@@ -97,7 +129,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ env.GLOBOMANTICS_TAG }}
-          name: '${{ env.AZURE_WEBAPP_NAME }}_production'
+          name: '${{ env.AZURE_WEBAPP_NAME }}-production'
           draft: false
           prerelease: false
           make_latest: true
