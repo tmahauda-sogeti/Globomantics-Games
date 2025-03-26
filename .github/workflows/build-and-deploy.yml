@@ -35,13 +35,13 @@ jobs:
     - name: Location of preinstalled tools on ${{ runner.name }}
       run: echo "The preinstalled tools are located here on the runner ${{ runner.tool_cache }}."
 
-  analyse:
+  analyze:
     needs: checks
     uses: ./.github/workflows/codeql-analysis.yml
 
   build:
     runs-on: ubuntu-latest
-    needs: analyse
+    needs: analyze
 
     steps:
       - name: 'Check out repository code'
@@ -60,7 +60,7 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: analyse
+    needs: build
 
     steps:
       - name: 'Check out repository code'
