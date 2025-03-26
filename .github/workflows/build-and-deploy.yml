@@ -58,41 +58,15 @@ jobs:
       - name: 'Build'
         run: dotnet build '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release --no-restore
 
-  package:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: 'Check out repository code'
-        uses: actions/checkout@v4
-      
-      - name: 'Setup .NET Core'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }} 
-      
       - name: 'Package'
         run: dotnet pack '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' --configuration Release --no-build --output .
 
-  publish:
-    runs-on: ubuntu-latest
-    needs: package
-
-    steps:
-      - name: 'Check out repository code'
-        uses: actions/checkout@v4
-      
-      - name: 'Setup .NET Core'
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }} 
-      
       - name: 'Publish'
         run: dotnet publish '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/src/web-game/Globomantics.sln' -c Release -o '${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/app-package' 
 
   deploy:
     runs-on: ubuntu-latest
-    needs: publish
+    needs: build
 
     steps:
       # Création des Releases par environnement
